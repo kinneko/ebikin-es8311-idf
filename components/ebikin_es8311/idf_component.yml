@@ -1,0 +1,5 @@
+# original implementation by ebikin
+# SPDX-License-Identifier: GPL-3.0-only
+dependencies:
+  idf: ">=5.4,<6.0"
+  esp-idf-lib/i2cdev: "==2.1.2"

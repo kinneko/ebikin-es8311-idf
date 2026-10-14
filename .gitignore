@@ -1,0 +1,12 @@
+# original implementation by ebikin
+# SPDX-License-Identifier: GPL-3.0-only
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+.cache/
+.DS_Store
+__pycache__/
+*.pyc
+*.log
