@@ -6,7 +6,17 @@ I2S チャンネル/クロックの作成・停止、録音、DMA、FIFO、Opus�
 
 ## 取り込み
 
-LifeLog の `firmware/main/idf_component.yml` に、リポジトリ配置が `/Users/kinneko/work/ebikin-es8311-idf` の場合:
+LifeLog の現行ローカル作業ツリーは次のタグ付きGit依存を使用する（LifeLog自体は未公開）:
+
+```yaml
+dependencies:
+  ebikin_es8311:
+    git: https://github.com/kinneko/ebikin-es8311-idf.git
+    path: components/ebikin_es8311
+    version: v0.1.0-pre1
+```
+
+`firmware/main/CMakeLists.txt` の `REQUIRES` に `ebikin_es8311` を追加する。ローカル開発でGit依存を置き換えたい場合は（LifeLogと本リポジトリを `/Users/kinneko/work/` に並べた例）:
 
 ```yaml
 dependencies:
@@ -14,17 +24,7 @@ dependencies:
     path: ../../../ebikin-es8311-idf/components/ebikin_es8311
 ```
 
-`firmware/main/CMakeLists.txt` の `REQUIRES` に `ebikin_es8311` を追加する。後日 Git タグを公開した場合は同じコンポーネントへの Git dependency に変更できる（URL と tag は未設定・未公開）:
-
-```yaml
-dependencies:
-  ebikin_es8311:
-    git: https://github.com/OWNER/REPO.git
-    path: components/ebikin_es8311
-    version: vX.Y.Z
-```
-
-Git 依存への移行時には、親アプリの `i2cdev` 依存とのバージョン整合を確認する。本コンポーネントの manifest は 2.1.2 に固定。RTC (PCF8563 0x51) は同じ i2cdev の別 descriptor として I2C0/SDA38/SCL39 を共有できる。別の I²C driver を同じ port に導入しない。コンポーネントは `i2cdev_init()` を呼ぶが、`i2cdev_done()` は呼ばない。`deinit` は自身の descriptor だけを削除する。他 descriptor のバスを停止しない。I²C 利用タスクの停止/同期はアプリ側の責任。
+Git 依存を使う親アプリでは、`i2cdev` 依存とのバージョン整合を確認する。本コンポーネントの manifest は 2.1.2 に固定。RTC (PCF8563 0x51) は同じ i2cdev の別 descriptor として I2C0/SDA38/SCL39 を共有できる。別の I²C driver を同じ port に導入しない。コンポーネントは `i2cdev_init()` を呼ぶが、`i2cdev_done()` は呼ばない。`deinit` は自身の descriptor だけを削除する。他 descriptor のバスを停止しない。I²C 利用タスクの停止/同期はアプリ側の責任。
 
 ### API と呼出順
 
@@ -75,12 +75,12 @@ idf.py -C examples/probe set-target esp32s3 build
 
 ### LifeLog統合と実機（2026-10-14）
 
-- LifeLogの `firmware/main/idf_component.yml` が本リポジトリをローカル`path`で参照。`audio_capture.c`の直書きES8311レジスタI/Oを公開APIへ移し、I2S/録音/Opus/撮影/RTCはアプリ内に維持。`idf.py -C firmware build`成功（`/Users/kinneko/work/ebikin-lifelog/patches/lifelog-component-build.log`）。
+- LifeLogの `firmware/main/idf_component.yml` は公開tag `v0.1.0-pre1`をGit参照し、`firmware/dependencies.lock`でcommit `49f0366e8f2a8e5e0c575c7f512b95b811cf4ce0`（tagの指すcommit）に固定。`audio_capture.c`の直書きES8311レジスタI/Oを公開APIへ移し、I2S/録音/Opus/撮影/RTCはアプリ内に維持。ローカル依存と公開Git依存の双方で`idf.py -C firmware build`成功（LifeLog `patches/lifelog-component-build.log`, `patches/lifelog-git-component-build.log`）。
 - アプリ領域だけをUSB書き込みし、esptool hash verified。書込前アプリはLifeLogの`patches/pre-es8311-component-app.bin`にバックアップ（NVS消去なし）。USB実機でES8311 FD=0x83/FE=0x11、GC0308 PID=0x9b、RTC有効、Opus音声3件と画像1件の同時動作を確認。4件のAPI確定・S3原bytes/ハッシュ/メタデータ読戻し成功。終了時、音声/周期撮影/送信/保留は停止、overrun/error=0。証跡`/Users/kinneko/work/ebikin-lifelog/tests/runtime/es8311-component/smoke-20261014/summary.json`。単体exampleにはI2Sを供給していないため、この検証はLifeLog統合版によるもの。
 - GPL-3.0-onlyの本コンポーネントを組み込むLifeLogファームウェアを配布する際は、LifeLog側の著作権・ライセンス表記と対応するソース提供条件を整理する必要がある。現時点でLifeLog全体に自動的にLICENSEを付けたり、法的判断を確定したりはしていない。
 
 ## 出典とライセンス
 
-- **このリポジトリの C 実装は ebikin original / GPL-3.0-only。** 移植元はローカル `/Users/kinneko/work/ebikin-lifelog/firmware/main/audio_capture.c` の分離前 codec 部分（当時72–125行、特に75、78–87、103–115、124行）。手順の背景は同プロジェクト `docs/stage4.md`。アプリの音声処理や I2S コードは持ち込まない。LifeLog側は現在この独立リポジトリへのローカル依存で統合済み。
+- **このリポジトリの C 実装は ebikin original / GPL-3.0-only。** 移植元はローカル `/Users/kinneko/work/ebikin-lifelog/firmware/main/audio_capture.c` の分離前 codec 部分（当時72–125行、特に75、78–87、103–115、124行）。手順の背景は同プロジェクト `docs/stage4.md`。アプリの音声処理や I2S コードは持ち込まない。LifeLog側は現在この独立リポジトリの公開tagに固定して統合済み。
 - **設定調査の参照資料（コピー・リンクしていない）:** M5Stack `M5Atomic-EchoBase` v1.0.2、commit `bf4b610495c5499ecece46a23f6fd446de19284a`、https://github.com/m5stack/M5Atomic-EchoBase/tree/bf4b610495c5499ecece46a23f6fd446de19284a 。`src/M5EchoBase.h/.cpp` の pin/clock 開始順、`src/es8311.cpp` の codec 設定・DAC register を参照。M5Stack wrapper/root は MIT、**ES8311 reference source は Apache-2.0**（Espressif）。当リポジトリにそのソースファイルを含めず Arduino ライブラリも依存しない。この明示は M5Stack の著作権・ライセンスを GPL と読み替えるものではない。
 - 実際に取得/リンクする `esp-idf-lib/i2cdev` 2.1.2 は MIT、source https://github.com/esp-idf-lib/i2cdev （manifest の `repository_info.commit_sha`: `7113b661fa467ad266e0b97b4e649ffa23d18cc5`）。ESP-IDF 5.4.3 は Espressif の SDK。依存パッケージや SDK は変更・同梱せず、Component Manager が例の `managed_components/` に取得したファイルは Git 対象外。

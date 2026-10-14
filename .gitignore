@@ -10,3 +10,4 @@ dependencies.lock
 __pycache__/
 *.pyc
 *.log
+dist/
